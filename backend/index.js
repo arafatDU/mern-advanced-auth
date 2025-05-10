@@ -12,10 +12,6 @@ app.use(express.json()); // allows us to parse incoming requests:req.body
 
 
 
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-});
-
 app.use("/api/auth", authRoutes);
 
 
