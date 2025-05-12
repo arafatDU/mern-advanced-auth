@@ -1,7 +1,8 @@
 import { User } from "../models/user.model.js";
 import bcryptjs from "bcryptjs";
+import crypto from "crypto";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
-import { sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/emails.js";
+import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/emails.js";
 
 export const signup = async (req, res) => {
   const { email, password, name } = req.body;
@@ -88,7 +89,37 @@ export const verifyEmail = async (req, res) => {
 
 
 export const login = async (req, res) => {
-  res.send("Login route");
+  const { email, password } = req.body;
+  try {
+    if(!email || !password) {
+      throw new Error("All fields are required");
+    }
+    const user = await User.findOne({ email });
+    if(!user) {
+      return res.status(400).json({success: false, message: "User not found"});
+    }
+    const isPasswordCorrect = await bcryptjs.compare(password, user.password);
+    if(!isPasswordCorrect) {
+      return res.status(400).json({success: false, message: "Invalid credentials"});
+    }
+
+    generateTokenAndSetCookie(res, user._id);
+    user.lastLogin = new Date();
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged in successfully",
+      user: {
+        ...user._doc,
+        password: undefined,
+      }
+    });
+    
+  } catch (error) {
+    console.log("error in login ", error);
+    res.status(400).json({success: false, message: error.message});
+  }
 }
 
 
@@ -96,3 +127,38 @@ export const logout = async (req, res) => {
 	res.clearCookie("token");
 	res.status(200).json({ success: true, message: "Logged out successfully" });
 };
+
+
+
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    if(!email) {
+      throw new Error("Email is required");
+    }
+    const user = await User.findOne({email});
+    if(!user) {
+      return res.status(400).json({success: false, message: "User not found"});
+    }
+
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
+
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpiresAt = resetTokenExpiresAt;
+    await user.save();
+
+    await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset email sent successfully",
+    });
+
+    
+  } catch (error) {
+    console.log("error in forgotPassword ", error);
+    res.status(400).json({success: false, message: error.message});
+  }
+}
