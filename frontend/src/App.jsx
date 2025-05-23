@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import SignUpPage from "./pages/SignUpPage";
 import LoginPage from "./pages/LoginPage";
+import DashboardPage from "./pages/DashboardPage";
 
 import LoadingSpinner from "./components/LoadingSpinner";
 
@@ -56,7 +57,7 @@ function App() {
 					path='/'
 					element={
 						<ProtectedRoute>
-							<div>Hello World</div>
+							<DashboardPage />
 						</ProtectedRoute>
 					}
 				/>
